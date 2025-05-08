@@ -3,9 +3,33 @@ import Modal from 'react-modal';
 import { useNavigate } from 'react-router-dom';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faDroplet } from '@fortawesome/free-solid-svg-icons';
+import { Line, Bar } from 'react-chartjs-2';
+import {
+  Chart as ChartJS,
+  CategoryScale,
+  LinearScale,
+  PointElement,
+  LineElement,
+  BarElement,
+  Title,
+  Tooltip,
+  Legend
+} from 'chart.js';
 import audioSpectrum from '../assets/🦆 icon _audio spectrum_.png';
 import WaterAnimation from './WaterAnimation';
 import WaterTracker from './WaterTracker';
+
+// Register ChartJS components
+ChartJS.register(
+  CategoryScale,
+  LinearScale,
+  PointElement,
+  LineElement,
+  BarElement,
+  Title,
+  Tooltip,
+  Legend
+);
 
 export default function Dashboard() {
   const [isTaskListOpen, setIsTaskListOpen] = useState(false);
@@ -34,6 +58,13 @@ export default function Dashboard() {
     const today = new Date().toISOString().split('T')[0]; // Get current date in YYYY-MM-DD format
     const savedWater = localStorage.getItem(`waterConsumed_${today}`);
     return savedWater ? parseInt(savedWater) : 0;
+  });
+  const [isProgressModalOpen, setIsProgressModalOpen] = useState(false);
+  const [progressName, setProgressName] = useState('');
+  const [selectedPercentage, setSelectedPercentage] = useState('50');
+  const [progressData, setProgressData] = useState(() => {
+    const saved = localStorage.getItem('progressData');
+    return saved ? JSON.parse(saved) : [];
   });
 
   // Dummy streak data for upcoming months
@@ -75,7 +106,7 @@ export default function Dashboard() {
       const now = new Date();
       const today = now.toISOString().split('T')[0];
       const savedDate = localStorage.getItem('currentDate');
-      
+
       if (savedDate !== today) {
         // It's a new day, reset water consumed
         setWaterConsumed(0);
@@ -119,6 +150,11 @@ export default function Dashboard() {
   useEffect(() => {
     localStorage.setItem('projects', JSON.stringify(projects));
   }, [projects]);
+
+  // Save progress data to localStorage whenever it changes
+  useEffect(() => {
+    localStorage.setItem('progressData', JSON.stringify(progressData));
+  }, [progressData]);
 
   const colors = ['#008080', '#87CEEB', '#C4A7E7', '#98FB98', '#FFAB76'];
 
@@ -178,9 +214,9 @@ export default function Dashboard() {
   };
 
   const handleCheckProject = (projectId) => {
-    setProjects(prevProjects => 
-      prevProjects.map(project => 
-        project.id === projectId 
+    setProjects(prevProjects =>
+      prevProjects.map(project =>
+        project.id === projectId
           ? { ...project, completed: !project.completed }
           : project
       )
@@ -190,7 +226,7 @@ export default function Dashboard() {
   const handleDeleteProject = (projectId) => {
     setProjects(prevProjects => prevProjects.filter(project => project.id !== projectId));
     // Also remove this project from any notes that reference it
-    setNotes(prevNotes => 
+    setNotes(prevNotes =>
       prevNotes.map(note => ({
         ...note,
         projects: note.projects.filter(id => id !== projectId)
@@ -200,14 +236,14 @@ export default function Dashboard() {
 
   const handleProjectTitleChange = (id, newTitle, e) => {
     e.stopPropagation();
-    setProjects(projects.map(project => 
+    setProjects(projects.map(project =>
       project.id === id ? { ...project, title: newTitle } : project
     ));
   };
 
   const handleDescriptionChange = (id, newDescription, e) => {
     e.stopPropagation();
-    setProjects(projects.map(project => 
+    setProjects(projects.map(project =>
       project.id === id ? { ...project, description: newDescription } : project
     ));
   };
@@ -220,10 +256,10 @@ export default function Dashboard() {
 
   const handleMonthChange = (direction) => {
     if (isAnimating) return;
-    
+
     setIsAnimating(true);
     setSlideDirection(direction);
-    
+
     const newDate = new Date(currentDate);
     if (direction === 'left') {
       newDate.setMonth(newDate.getMonth() - 1);
@@ -236,6 +272,144 @@ export default function Dashboard() {
       setSlideDirection('');
       setIsAnimating(false);
     }, 300);
+  };
+
+  const getWaterConsumptionData = (month) => {
+    const daysInMonth = new Date(2024, months.indexOf(month) + 1, 0).getDate();
+    const data = [];
+    const labels = [];
+
+    // Generate a base value for the month (between 1500 and 2500)
+    const baseValue = Math.floor(Math.random() * 1000) + 1500;
+
+    // Generate a trend (slight increase or decrease over the month)
+    const trend = (Math.random() - 0.5) * 20; // -10 to +10 per day
+
+    for (let i = 1; i <= daysInMonth; i++) {
+      // Calculate the value with some randomness and the trend
+      let value = baseValue + (trend * (i - 1));
+
+      // Add some daily variation (-200 to +200)
+      value += Math.floor(Math.random() * 400) - 200;
+
+      // Ensure the value stays within realistic bounds (0 to 3000)
+      value = Math.max(0, Math.min(3000, Math.round(value)));
+
+      data.push(value);
+      labels.push(i);
+    }
+
+    return {
+      labels,
+      datasets: [
+        {
+          label: 'Water Consumption (ml)',
+          data: data,
+          borderColor: '#FF58B7',
+          backgroundColor: 'rgba(255, 88, 183, 0.1)',
+          tension: 0.4,
+          fill: true
+        }
+      ]
+    };
+  };
+
+  const chartOptions = {
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: {
+      legend: {
+        position: 'top',
+        labels: {
+          color: '#FFFFFF'
+        }
+      },
+      title: {
+        display: false
+      }
+    },
+    scales: {
+      y: {
+        beginAtZero: true,
+        grid: {
+          color: 'rgba(255, 255, 255, 0.1)'
+        },
+        ticks: {
+          color: '#FFFFFF'
+        }
+      },
+      x: {
+        grid: {
+          color: 'rgba(255, 255, 255, 0.1)'
+        },
+        ticks: {
+          color: '#FFFFFF'
+        }
+      }
+    }
+  };
+
+  const handleAddProgress = () => {
+    if (progressName.trim()) {
+      const newProgress = {
+        id: Date.now(),
+        name: progressName,
+        percentage: parseInt(selectedPercentage)
+      };
+      setProgressData(prev => [...prev, newProgress]);
+      setProgressName('');
+      setSelectedPercentage('50');
+      setIsProgressModalOpen(false);
+    }
+  };
+
+  const handleDeleteProgress = (id) => {
+    setProgressData(prev => prev.filter(item => item.id !== id));
+  };
+
+  const getProgressChartData = () => {
+    return {
+      labels: progressData.map(item => item.name),
+      datasets: [
+        {
+          label: 'Progress (%)',
+          data: progressData.map(item => item.percentage),
+          backgroundColor: '#FF58B7',
+          borderColor: '#FF58B7',
+          borderWidth: 1
+        }
+      ]
+    };
+  };
+
+  const progressChartOptions = {
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: {
+      legend: {
+        display: false
+      }
+    },
+    scales: {
+      y: {
+        beginAtZero: true,
+        max: 100,
+        grid: {
+          color: 'rgba(255, 255, 255, 0.1)'
+        },
+        ticks: {
+          color: '#FFFFFF'
+        }
+      },
+      x: {
+        grid: {
+          color: 'rgba(255, 255, 255, 0.1)'
+        },
+        ticks: {
+          color: '#FFFFFF'
+        }
+      }
+    }
   };
 
   const renderContent = () => {
@@ -265,8 +439,8 @@ export default function Dashboard() {
               <div className="project-content">
                 {projects.map((project, index) => (
                   <div key={project.id} className="project-box">
-                    <button 
-                      className="delete-project-btn" 
+                    <button
+                      className="delete-project-btn"
                       onClick={() => handleDeleteProject(project.id)}
                     >
                       ×
@@ -309,23 +483,23 @@ export default function Dashboard() {
               <button className="add-note-btn" onClick={() => handleAddNote({ title: '', content: '' })}>+</button>
               <div className="notes-content">
                 {notes.map(note => (
-                  <div 
-                    key={note.id} 
+                  <div
+                    key={note.id}
                     className="note-box"
                     style={{ backgroundColor: note.color }}
                   >
-                    <button 
+                    <button
                       className="delete-note-btn"
                       onClick={() => handleDeleteNote(note.id)}
                     >
                       ×
                     </button>
-                    <textarea 
+                    <textarea
                       placeholder="Type your note here..."
                       value={note.content}
                       onChange={(e) => {
-                        const updatedNotes = notes.map(n => 
-                          n.id === note.id ? {...n, content: e.target.value} : n
+                        const updatedNotes = notes.map(n =>
+                          n.id === note.id ? { ...n, content: e.target.value } : n
                         );
                         setNotes(updatedNotes);
                       }}
@@ -361,174 +535,54 @@ export default function Dashboard() {
                   gap: '10px'
                 }}>
                   <div style={{
-                    color: '#FFFFFF',
-                    fontSize: '22px',
-                    fontWeight: 'bold',
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
                     marginBottom: '10px'
                   }}>
-                    Progress Analysis
-                  </div>
-                  {/* First box content */}
-                  <Modal
-                    isOpen={isTaskListOpen}
-                    onRequestClose={() => setIsTaskListOpen(false)}
-                    style={{
-                      overlay: {
-                        backgroundColor: 'rgba(0, 0, 0, 0.5)',
-                        zIndex: 1000
-                      },
-                      content: {
-                        top: '50%',
-                        left: '50%',
-                        right: 'auto',
-                        bottom: 'auto',
-                        marginRight: '-50%',
-                        transform: 'translate(-50%, -50%)',
-                        background: '#202424',
-                        borderRadius: '10px',
-                        padding: '2rem',
-                        width: '600px',
-                        height: '400px',
-                        border: 'none',
-                        overflow: 'hidden'
-                      }
-                    }}
-                  >
                     <div style={{
-                      display: 'flex',
-                      justifyContent: 'space-between',
-                      alignItems: 'center',
-                      marginBottom: '1.5rem'
+                      color: '#FFFFFF',
+                      fontSize: '22px',
+                      fontWeight: 'bold'
                     }}>
-                      <h2 style={{
-                        color: '#FFFFFF',
-                        fontSize: '24px',
-                        fontWeight: 'bold',
-                        margin: 0
-                      }}>
-                        Task List
-                      </h2>
-                      <button
-                        onClick={() => setIsTaskListOpen(false)}
-                        style={{
-                          background: 'none',
-                          border: 'none',
-                          color: '#A6A6A6',
-                          fontSize: '24px',
-                          cursor: 'pointer',
-                          padding: '5px'
-                        }}
-                      >
-                        ×
-                      </button>
+                      Progress Analysis
                     </div>
-                    
-                    <div style={{
-                      display: 'flex',
-                      flexDirection: 'column',
-                      alignItems: 'center',
-                      gap: '1rem',
-                      height: '100%',
-                      justifyContent: 'center'
-                    }}>
-                      <button
-                        className="add-note-btn"
-                        style={{
-                          width: '50px',
-                          height: '50px'
-                        }}
-                        onClick={() => setIsAddingTask(true)}
-                      >
-                        +
-                      </button>
-                      {isAddingTask && (
-                        <div style={{
-                          width: '100%',
-                          marginTop: '1rem'
-                        }}>
-                          <input
-                            type="text"
-                            placeholder="Task Name"
-                            value={taskName}
-                            onChange={(e) => setTaskName(e.target.value)}
-                            style={{
-                              width: '100%',
-                              padding: '0.75rem',
-                              borderRadius: '5px',
-                              border: '1px solid #A6A6A6',
-                              background: '#292929',
-                              color: '#FFFFFF',
-                              fontSize: '16px'
-                            }}
-                          />
-                          <div style={{
-                            display: 'flex',
-                            justifyContent: 'flex-end',
-                            gap: '0.5rem',
-                            marginTop: '0.5rem'
-                          }}>
-                            <button
-                              onClick={() => {
-                                setIsAddingTask(false);
-                                setTaskName('');
-                              }}
-                              style={{
-                                padding: '0.5rem 1rem',
-                                background: '#292929',
-                                color: '#FFFFFF',
-                                border: '1px solid #A6A6A6',
-                                borderRadius: '5px',
-                                cursor: 'pointer',
-                                transition: 'opacity 0.3s'
-                              }}
-                            >
-                              Cancel
-                            </button>
-                            <button
-                              onClick={() => {
-                                // Add task logic here
-                                console.log('Task added:', taskName);
-                                setIsAddingTask(false);
-                                setTaskName('');
-                              }}
-                              style={{
-                                padding: '0.5rem 1rem',
-                                background: '#FFFFFF',
-                                color: '#000000',
-                                border: 'none',
-                                borderRadius: '5px',
-                                cursor: 'pointer',
-                                transition: 'opacity 0.3s'
-                              }}
-                            >
-                              Add
-                            </button>
-                          </div>
-                        </div>
-                      )}
+                    <button
+                      onClick={() => setIsProgressModalOpen(true)}
+                      style={{
+                        width: '30px',
+                        height: '30px',
+                        borderRadius: '50%',
+                        background: '#A6A6A6',
+                        color: '#292929',
+                        border: 'none',
+                        fontSize: '20px',
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        transition: 'all 0.3s ease'
+                      }}
+                    >
+                      +
+                    </button>
+                  </div>
+                  <div style={{ flex: 1, position: 'relative' }}>
+                    {progressData.length > 0 ? (
+                      <Bar data={getProgressChartData()} options={progressChartOptions} />
+                    ) : (
                       <div style={{
                         display: 'flex',
-                        justifyContent: 'flex-end',
-                        width: '100%',
-                        marginTop: '1rem'
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        height: '100%',
+                        color: '#A6A6A6',
+                        fontSize: '16px'
                       }}>
-                        <button
-                          onClick={() => setIsTaskListOpen(false)}
-                          style={{
-                            padding: '0.75rem 1.5rem',
-                            background: '#292929',
-                            color: '#FFFFFF',
-                            border: '1px solid #A6A6A6',
-                            borderRadius: '5px',
-                            cursor: 'pointer',
-                            transition: 'opacity 0.3s'
-                          }}
-                        >
-                          Cancel
-                        </button>
+                        Click + to add progress items
                       </div>
-                    </div>
-                  </Modal>
+                    )}
+                  </div>
                 </div>
                 <div style={{
                   width: '475px',
@@ -611,9 +665,9 @@ export default function Dashboard() {
                       padding: '3px',
                       backgroundColor: '#292929',
                       borderRadius: '12px',
-                      transform: slideDirection === 'left' ? 'translateX(100%)' : 
-                               slideDirection === 'right' ? 'translateX(-100%)' : 
-                               'translateX(0)',
+                      transform: slideDirection === 'left' ? 'translateX(100%)' :
+                        slideDirection === 'right' ? 'translateX(-100%)' :
+                          'translateX(0)',
                       transition: 'transform 0.3s ease-in-out',
                       opacity: 1,
                       flex: 1
@@ -654,28 +708,28 @@ export default function Dashboard() {
                         const firstDayOfMonth = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1);
                         const startingDay = firstDayOfMonth.getDay();
                         const date = i - startingDay + 1;
-                        const isToday = date === today.getDate() && 
-                                      currentDate.getMonth() === today.getMonth() && 
-                                      currentDate.getFullYear() === today.getFullYear();
+                        const isToday = date === today.getDate() &&
+                          currentDate.getMonth() === today.getMonth() &&
+                          currentDate.getFullYear() === today.getFullYear();
                         const isCurrentMonth = date > 0 && date <= new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0).getDate();
-                        
+
                         // Check for streaks in current month
                         const monthKey = `${currentDate.getFullYear()}-${String(currentDate.getMonth() + 1).padStart(2, '0')}`;
                         const monthStreaks = streakData[monthKey] || [];
-                        
-                        const currentStreak = monthStreaks.find(streak => 
+
+                        const currentStreak = monthStreaks.find(streak =>
                           date >= streak.start && date <= streak.end
                         );
-                        
+
                         const isStreakDate = !!currentStreak;
                         const isStreakEndpoint = isStreakDate && (
                           date === currentStreak.start || date === currentStreak.end
                         );
                         const isStreakMiddle = isStreakDate && !isStreakEndpoint;
-                        
+
                         // Only show the streak bar at the start of each streak
                         const showStreakBar = monthStreaks.some(streak => date === streak.start);
-                        
+
                         return (
                           <div
                             key={i}
@@ -685,10 +739,10 @@ export default function Dashboard() {
                               color: isToday ? '#FFFFFF' : (isStreakDate ? '#FFFFFF' : '#000000'),
                               fontSize: '12px',
                               padding: '4px',
-                              backgroundColor: isToday ? 'rgb(175, 93, 213)' : 
-                                                isStreakEndpoint ? '#975EE0' :
-                                                isStreakMiddle ? '#6A4A80' :
-                                                isCurrentMonth ? '#D9D9D9' : 'transparent',
+                              backgroundColor: isToday ? 'rgb(175, 93, 213)' :
+                                isStreakEndpoint ? '#975EE0' :
+                                  isStreakMiddle ? '#6A4A80' :
+                                    isCurrentMonth ? '#D9D9D9' : 'transparent',
                               borderRadius: '50%',
                               width: '27px',
                               height: '27px',
@@ -858,7 +912,7 @@ export default function Dashboard() {
                           transition: 'transform 0.3s ease'
                         }}
                       >
-                        <path d="M1 1L6 6L11 1" stroke="#A6A6A6" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                        <path d="M1 1L6 6L11 1" stroke="#A6A6A6" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
                       </svg>
                     </button>
                     {isMonthsDropdownOpen && (
@@ -907,6 +961,30 @@ export default function Dashboard() {
                             </button>
                           ))}
                         </div>
+                      </div>
+                    )}
+                  </div>
+                  <div style={{
+                    flex: 1,
+                    position: 'relative',
+                    width: '100%',
+                    height: '200px'
+                  }}>
+                    {selectedMonth !== 'Select Month' ? (
+                      <Line
+                        data={getWaterConsumptionData(selectedMonth)}
+                        options={chartOptions}
+                      />
+                    ) : (
+                      <div style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        height: '100%',
+                        color: '#A6A6A6',
+                        fontSize: '16px'
+                      }}>
+                        Select a month to view water consumption data
                       </div>
                     )}
                   </div>
@@ -991,15 +1069,15 @@ export default function Dashboard() {
                   alignItems: 'flex-start',
                   gap: '15px'
                 }}>
-                  <FontAwesomeIcon 
-                    icon={faDroplet} 
+                  <FontAwesomeIcon
+                    icon={faDroplet}
                     style={{
                       color: "#977ee1",
                       fontSize: '50px',
                       marginTop: '5px'
                     }
-                    
-                  } 
+
+                    }
                   />
                   <div style={{
                     display: 'flex',
@@ -1095,6 +1173,140 @@ export default function Dashboard() {
           {renderContent()}
         </main>
       </div>
+
+      {/* Progress Modal */}
+      <Modal
+        isOpen={isProgressModalOpen}
+        onRequestClose={() => setIsProgressModalOpen(false)}
+        style={{
+          overlay: {
+            backgroundColor: 'rgba(0, 0, 0, 0.5)',
+            zIndex: 1000
+          },
+          content: {
+            top: '50%',
+            left: '50%',
+            right: 'auto',
+            bottom: 'auto',
+            marginRight: '-50%',
+            transform: 'translate(-50%, -50%)',
+            background: '#202424',
+            borderRadius: '10px',
+            padding: '2rem',
+            width: '400px',
+            border: 'none'
+          }
+        }}
+      >
+        <div style={{
+          display: 'flex',
+          flexDirection: 'column',
+          gap: '1rem'
+        }}>
+          <h2 style={{
+            color: '#FFFFFF',
+            fontSize: '24px',
+            fontWeight: 'bold',
+            margin: 0
+          }}>
+            Add Progress Item
+          </h2>
+
+          <div style={{
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '0.5rem'
+          }}>
+            <label style={{ color: '#FFFFFF' }}>Name:</label>
+            <input
+              type="text"
+              value={progressName}
+              onChange={(e) => setProgressName(e.target.value)}
+              style={{
+                padding: '0.75rem',
+                borderRadius: '5px',
+                border: '1px solid #A6A6A6',
+                background: '#292929',
+                color: '#FFFFFF',
+                fontSize: '16px'
+              }}
+              placeholder="Enter progress name"
+            />
+          </div>
+
+          <div style={{
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '0.5rem'
+          }}>
+            <label style={{ color: '#FFFFFF' }}>Progress Percentage:</label>
+            <div style={{
+              display: 'flex',
+              gap: '1rem',
+              flexWrap: 'wrap'
+            }}>
+              {['25', '50', '75', '100'].map((value) => (
+                <label
+                  key={value}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '0.5rem',
+                    color: '#FFFFFF',
+                    cursor: 'pointer'
+                  }}
+                >
+                  <input
+                    type="radio"
+                    name="percentage"
+                    value={value}
+                    checked={selectedPercentage === value}
+                    onChange={(e) => setSelectedPercentage(e.target.value)}
+                    style={{
+                      accentColor: '#FF58B7'
+                    }}
+                  />
+                  {value}%
+                </label>
+              ))}
+            </div>
+          </div>
+
+          <div style={{
+            display: 'flex',
+            justifyContent: 'flex-end',
+            gap: '0.5rem',
+            marginTop: '1rem'
+          }}>
+            <button
+              onClick={() => setIsProgressModalOpen(false)}
+              style={{
+                padding: '0.5rem 1rem',
+                background: '#292929',
+                color: '#FFFFFF',
+                border: '1px solid #A6A6A6',
+                borderRadius: '5px',
+                cursor: 'pointer'
+              }}
+            >
+              Cancel
+            </button>
+            <button
+              onClick={handleAddProgress}
+              style={{
+                padding: '0.5rem 1rem',
+                background: '#FF58B7',
+                color: '#FFFFFF',
+                border: 'none',
+                borderRadius: '5px',
+                cursor: 'pointer'
+              }}
+            >
+              Add
+            </button>
+          </div>
+        </div>
+      </Modal>
     </div>
   );
 }
