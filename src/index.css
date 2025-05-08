@@ -1,0 +1,78 @@
+/* Base styles */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+.app {
+  font-family: Arial, sans-serif;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background-color: #f4f4f4;
+  padding: 20px;
+}
+
+/* Header styles */
+.header {
+  width: 100%;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background-color: #ffffff;
+  
+}
+
+.logo {
+  font-size: 1.5rem;
+  font-weight: bold;
+  color: #2d3436;
+}
+
+
+
+/* Hero section */
+.hero {
+  text-align: center;
+  margin-top: 5rem;
+}
+
+.main-text {
+  font-size: 69;
+  color: #FFFFFF;
+  margin-bottom: 2rem;
+}
+
+.signup-btn {
+  padding: 0.5rem 1.5rem;
+  background-color: #292929;
+  color: white;
+  border: 1px solid #A6A6A6;
+  border-radius: 25px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.signup-btn:hover {
+  opacity: 0.9;
+}
+
+
+.cta-btn {
+  padding: 1rem 2.5rem;
+  font-size: 1.2rem;
+  font-weight: bold;
+  background-color: #FFFFFF;
+  color: #000000;
+  border: none;
+  border-radius: 25px;
+  cursor: pointer;
+  transition: opacity 0.3s;
+}
+
+.cta-btn:hover {
+  opacity: 0.8;
+}
