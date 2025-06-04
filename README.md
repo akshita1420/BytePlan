@@ -63,15 +63,6 @@
 - Deliver actionable **visual insights** for user behavior
 - Improve **motivation and accountability**
 
----
-
-## 👩‍💻 Developed By
-
-- **Lakshmi Kaveri B** (RA2211027010130)  
-- **Varenya Bhimaraju** (RA2211027010117)  
-- **Akshita Sahu** (RA2211027010111)  
-
----
 
 ## 📄 License
 
